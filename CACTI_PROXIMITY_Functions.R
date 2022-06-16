@@ -1,5 +1,8 @@
+
+#This function calculates the optimal lambda value in CACTI via a binary search 
 lambda_calc = function(C_low,X,Y, alpha = 0.15, lambda_max = 8,lambda_min = 0, lambda_wid = 0.05,seurat_obj = NULL,k_param = 15,resolution = 1.5,n_pcs = NCOL(X)+NCOL(Y)){
   ptm <- proc.time()
+  #if seuratobject is not supplied make one and perform variable feature selection, PCA, etc..
   if (is.null(seurat_obj) == TRUE){
     X = as.data.frame(X)
     Y = as.data.frame(Y)
@@ -12,13 +15,13 @@ lambda_calc = function(C_low,X,Y, alpha = 0.15, lambda_max = 8,lambda_min = 0, l
     VariableFeatures(object = seurat_obj) = rownames(new_data)
     seurat_obj <- ScaleData(seurat_obj,do.scale = F,do.center = F,scale.max = Inf)
     data = GetAssayData(object = seurat_obj)
-    #seurat_obj <- RunPCA(seurat_obj, pcs.print = 0,pcs.compute=NCOL(seurat_obj@data))
-    seurat_obj <- RunPCA(seurat_obj, pcs.print = 0,pcs.compute = NROW(data))
+    seurat_obj <- RunPCA(seurat_obj, pcs.print = 0,pcs.compute = NROW(new_data))
   }
   data = GetAssayData(object = seurat_obj)
+  #perform binary search
   while(lambda_max  -lambda_min > lambda_wid){
     class_err = 0
-    #Get lambda_t
+    #Get test lambda value
     lambda_test = mean(c(lambda_max,lambda_min))
     print(lambda_test)
     #Change pca embeddings based on lambda.
@@ -49,10 +52,11 @@ lambda_calc = function(C_low,X,Y, alpha = 0.15, lambda_max = 8,lambda_min = 0, l
   return(lambda_star)
 }
 
-###### Resolution calculation
+###### Resolution calculation also binary search to make sure that number of clusters found is in acceptable range
 res_calc = function(res_max,X,Y,lambda, clust_max, clust_min,seurat_obj = NULL,k_param = 15,res_wid = 0.05,res_min = 0,n_pcs = NCOL(X)+NCOL(Y)){
   ptm <- proc.time()
   res_star = 0
+  #if seurat object is not supplied, make one
   if (is.null(seurat_obj) == TRUE){
     X = as.data.frame(X)
     Y = as.data.frame(Y)
@@ -65,7 +69,7 @@ res_calc = function(res_max,X,Y,lambda, clust_max, clust_min,seurat_obj = NULL,k
     VariableFeatures(object = seurat_obj) = rownames(new_data)
     seurat_obj <- ScaleData(seurat_obj,do.scale = F,do.center = F,scale.max = Inf)
     data = GetAssayData(object = seurat_obj)
-    seurat_obj <- RunPCA(seurat_obj, pcs.print = 0,pcs.compute = NROW(data))
+    seurat_obj <- RunPCA(seurat_obj, pcs.print = 0,pcs.compute = NROW(new_data))
   }
   seurat_obj@reductions$pca@cell.embeddings <- as.matrix(cbind(X,lambda*Y))
   rownames(seurat_obj@reductions$pca@cell.embeddings) = c(1:NROW(seurat_obj@reductions$pca@cell.embeddings))
@@ -95,8 +99,8 @@ res_calc = function(res_max,X,Y,lambda, clust_max, clust_min,seurat_obj = NULL,k
   
 }
 
-##### Prune clusters
-prune_clust = function(connect, XY_labels, p_val = 0.05,n_sim = 100){
+##### Prune clusters: Perform hypothesis test to see if clusters are too similar to one another
+prune_clust = function(connect, XY_labels, p_val = 0.05,n_sim = 1000){
   ptm <- proc.time()
   N = length(unique(XY_labels))
   clusters = unique(XY_labels)
@@ -136,7 +140,7 @@ prune_clust = function(connect, XY_labels, p_val = 0.05,n_sim = 100){
     #Calculate the bonferroni factor
     n_bon = (N-i)*(N-i-1)/2
     if(max_p > 0.05/n_bon){
-      #Need to update labels if maximum p-value is insignificant
+      #Update labels if maximum p-value is insignificant
       XY_labels[which(XY_labels == clusters[P_index[2]])] = clusters[P_index[1]]
       clusters = unique(XY_labels)
     }
@@ -153,16 +157,21 @@ prune_clust = function(connect, XY_labels, p_val = 0.05,n_sim = 100){
 
 
 proximity_test = function(c1,c2,c3,snn,nsim = 10000){
+  #calculate mean similarity
   T_stat = mean(snn[c1,c3])
   n1 = length(c1)
   T_wm = c()
   for(j in c(1:nsim)){
+    #shuffle cell type labels
     z1 = sample(c(c1,c2),n1)
+    #recalculate avergae similarity
     T_wm = append(T_wm,mean(snn[z1,c3]))
   }
   sigma_wm = sd(T_wm)
   mu_wm = mean(T_wm)
+  #get z score of observed test statistic 
   T_val = (T_stat - mu_wm)/sigma_wm
+  #get pvalue, low pvalues correspond to high similarity
   p_val = 1-pnorm(T_val)
   return(p_val)
 }
