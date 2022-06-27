@@ -93,7 +93,7 @@ lambda_star = lambda_calc(X_low,X_niche,Y_niche,alpha = 0.15,lambda_max = 4,k_pa
 res_star = res_calc(res_max = 5,X_niche,Y_niche,lambda = lambda_star, clust_max = 60, clust_min = 45, k_param = 20)
 #prune clusters
 cluster_xy = prune_clust(connect_low, Idents(res_star))
-cluster_xy = Idents(res_star)
+Idents(res_star) = cluster_xy
 print("Almost there")
 print("Making UMAP Plots")
 res_star <- RunUMAP(res_star,dims = 1:48)
