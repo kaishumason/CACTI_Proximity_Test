@@ -7,4 +7,4 @@ Code for individual function used for CACTI and the spatial proximity test can b
 * prune_clust tests to see if the clusters found by CACTI are significantly dissimilar from one another 
 * proximity_test performs the similarity test outlined in the materials and methods  
 
-
+CACTI_Aggregated_Patient_Data.R is a sample usage of CACTI and cluster_analysis.R is a usage of the proximity test.
