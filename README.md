@@ -1,4 +1,4 @@
-# CACTI_Proximity_Test
+# CACTI/Proximity Test
 Source code for CACTI and Proximity tests for use in spatial transcriptomics \
 Code for individual function used for CACTI and the spatial proximity test can be found in CACTI_PROXIMITY_FUNCTIONS.R
 
